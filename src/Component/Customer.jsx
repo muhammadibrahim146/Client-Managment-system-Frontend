@@ -12,7 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-const API_URL =  "https://client-managment-system-backend.vercel.app/api/customers";
+const API_URL =  "https://client-managment-system-backend-otp.vercel.app/api/customers";
 
 const months = [
   "January",

@@ -49,7 +49,7 @@ const Reports = () => {
         setError("");
 
         const response = await axios.get(
-           "https://client-managment-system-backend.vercel.app/api/customers",
+           "https://client-managment-system-backend-otp.vercel.app/api/customers",
         );
 
         console.log("Customers for Reports:", response.data);

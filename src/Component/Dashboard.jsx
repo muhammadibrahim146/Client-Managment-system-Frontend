@@ -33,7 +33,7 @@ export default function Dashboard() {
         setError("");
 
         const response = await axios.get(
-          "http://localhost:5000/api/customers/summary"
+           "https://client-managment-system-backend-otp.vercel.app/api/customers",
         );
 
         console.log("Dashboard Summary:", response.data);

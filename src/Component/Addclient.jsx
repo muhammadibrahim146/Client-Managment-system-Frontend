@@ -37,7 +37,7 @@ export default function AddClient() {
 
     try {
       const response = await axios.post(
-         "https://client-management-system-drab.vercel.app/api/customers",
+         "https://client-managment-system-backend-otp.vercel.app/api/customers",
         {
           ...formData,
           amount: Number(formData.amount),
