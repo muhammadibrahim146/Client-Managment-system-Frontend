@@ -6,6 +6,7 @@ import Customers from "./Component/Customer";
 import AddClient from "./Component/Addclient";
 import Layout from "./Component/Layout";
 import ProtectedRoute from "./Component/ProtectedRoute";
+import Reports from "./Component/Report";
 
 const App = () => {
   return (
@@ -51,9 +52,14 @@ const App = () => {
               element={<AddClient />}
             />
 
-          </Route>
+        
 
-        </Route>
+<Route
+path="/reports"
+element={<Reports />}
+/>
+</Route>
+    </Route>
 
         {/* =========================
             UNKNOWN ROUTE

@@ -1,6 +1,10 @@
 import { useState } from "react";
 import axios from "axios";
-import { UserPlus, CheckCircle2 } from "lucide-react";
+import {
+  UserPlus,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
 export default function AddClient() {
   const [formData, setFormData] = useState({
@@ -14,22 +18,33 @@ export default function AddClient() {
   });
 
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    setMessage("");
+    setError("");
+
     try {
-      await axios.post(
+      const response = await axios.post(
         "http://localhost:5000/api/customers",
-        formData
+        {
+          ...formData,
+          amount: Number(formData.amount),
+        }
       );
+
+      console.log("Customer created:", response.data);
 
       setMessage("Customer added successfully!");
 
@@ -42,204 +57,209 @@ export default function AddClient() {
         amount: "",
         status: "Unpaid",
       });
-
     } catch (error) {
-      console.error(error);
-      setMessage("Failed to add customer");
+      console.error("Add Customer Error:", error);
+
+      setError(
+        error.response?.data?.message ||
+          "Failed to add customer"
+      );
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mx-auto max-w-3xl">
 
-      {/* Heading */}
-      <div className="mb-8">
+        {/* Header */}
+        <div className="mb-6 flex items-center gap-3">
+          <div className="rounded-lg bg-blue-600 p-3 text-white">
+            <UserPlus size={24} />
+          </div>
 
-        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4">
-          <UserPlus />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">
+              Add Customer
+            </h1>
+
+            <p className="text-sm text-gray-500">
+              Add a new customer to the system
+            </p>
+          </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-slate-900">
-          Add New Client
-        </h1>
+        {/* Success Message */}
+        {message && (
+          <div className="mb-5 flex items-center gap-2 rounded-lg bg-green-100 p-4 text-green-700">
+            <CheckCircle2 size={20} />
+            <span>{message}</span>
+          </div>
+        )}
 
-        <p className="text-slate-500 mt-2">
-          Enter customer information and payment details.
-        </p>
+        {/* Error Message */}
+        {error && (
+          <div className="mb-5 flex items-center gap-2 rounded-lg bg-red-100 p-4 text-red-700">
+            <AlertCircle size={20} />
+            <span>{error}</span>
+          </div>
+        )}
 
-      </div>
+        {/* Form */}
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-xl bg-white p-6 shadow"
+        >
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
-      >
+          {/* Name */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Name
+            </label>
 
-        <div className="p-6 sm:p-8">
-
-          <h2 className="text-lg font-bold text-slate-900 mb-6">
-            Customer Information
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <Input
-              label="Customer Name"
+            <input
+              type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
               placeholder="Enter customer name"
               required
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
             />
+          </div>
 
-            <Input
-              label="Phone Number"
+          {/* Phone */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Phone
+            </label>
+
+            <input
+              type="text"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              placeholder="03001234567"
+              placeholder="Enter phone number"
               required
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
             />
+          </div>
 
-            <Input
-              label="Email Address"
-              name="email"
+          {/* Email */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Email
+            </label>
+
+            <input
               type="email"
+              name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="customer@email.com"
+              placeholder="Enter email"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
             />
+          </div>
 
-            <Input
-              label="Address"
+          {/* Address */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Address
+            </label>
+
+            <textarea
               name="address"
               value={formData.address}
               onChange={handleChange}
-              placeholder="Customer address"
+              placeholder="Enter customer address"
               required
+              rows="3"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
             />
-
-            <Input
-              label="Sale Amount"
-              name="amount"
-              type="number"
-              value={formData.amount}
-              onChange={handleChange}
-              placeholder="25000"
-              required
-            />
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Month
-              </label>
-
-              <select
-                name="month"
-                value={formData.month}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition"
-              >
-                <option value="">
-                  Select month
-                </option>
-
-                {[
-                  "January",
-                  "February",
-                  "March",
-                  "April",
-                  "May",
-                  "June",
-                  "July",
-                  "August",
-                  "September",
-                  "October",
-                  "November",
-                  "December",
-                ].map((month) => (
-                  <option key={month} value={month}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Payment Status
-              </label>
-
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition"
-              >
-                <option value="Paid">
-                  Paid
-                </option>
-
-                <option value="Unpaid">
-                  Unpaid
-                </option>
-              </select>
-            </div>
-
           </div>
 
-          {message && (
-            <div className="mt-6 flex items-center gap-2 bg-green-50 text-green-700 px-4 py-3 rounded-xl">
-              <CheckCircle2 size={20} />
-              {message}
-            </div>
-          )}
+          {/* Amount */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Amount
+            </label>
 
-        </div>
+            <input
+              type="number"
+              name="amount"
+              value={formData.amount}
+              onChange={handleChange}
+              placeholder="Enter amount"
+              min="0"
+              required
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+            />
+          </div>
 
-        <div className="border-t border-slate-100 bg-slate-50 px-6 sm:px-8 py-5 flex justify-end">
+          {/* Month */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Month
+            </label>
 
+            <select
+              name="month"
+              value={formData.month}
+              onChange={handleChange}
+              required
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+            >
+              <option value="">
+                Select Month
+              </option>
+
+              <option value="January">January</option>
+              <option value="February">February</option>
+              <option value="March">March</option>
+              <option value="April">April</option>
+              <option value="May">May</option>
+              <option value="June">June</option>
+              <option value="July">July</option>
+              <option value="August">August</option>
+              <option value="September">September</option>
+              <option value="October">October</option>
+              <option value="November">November</option>
+              <option value="December">December</option>
+            </select>
+          </div>
+
+          {/* Status */}
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Payment Status
+            </label>
+
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-blue-500"
+            >
+              <option value="Unpaid">
+                Unpaid
+              </option>
+
+              <option value="Paid">
+                Paid
+              </option>
+            </select>
+          </div>
+
+          {/* Submit */}
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-7 py-3 rounded-xl shadow-lg shadow-blue-600/20 transition"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition hover:bg-blue-700"
           >
+            <UserPlus size={20} />
             Add Customer
           </button>
 
-        </div>
-
-      </form>
-
-    </div>
-  );
-}
-
-function Input({
-  label,
-  name,
-  type = "text",
-  value,
-  onChange,
-  placeholder,
-  required,
-}) {
-  return (
-    <div>
-
-      <label className="block text-sm font-semibold text-slate-700 mb-2">
-        {label}
-      </label>
-
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        required={required}
-        className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-50 transition"
-      />
-
+        </form>
+      </div>
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 import {
   Users,
   CheckCircle2,
@@ -7,28 +10,78 @@ import {
 } from "lucide-react";
 
 export default function Dashboard() {
+  const [summary, setSummary] = useState({
+    totalCustomers: 0,
+    paidCustomers: 0,
+    unpaidCustomers: 0,
+    totalAmount: 0,
+    paidAmount: 0,
+    unpaidAmount: 0,
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // =========================
+  // GET DASHBOARD SUMMARY
+  // =========================
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await axios.get(
+          "http://localhost:5000/api/customers/summary"
+        );
+
+        console.log("Dashboard Summary:", response.data);
+
+        setSummary(response.data.summary);
+      } catch (error) {
+        console.error("Dashboard API Error:", error);
+
+        setError(
+          error.response?.data?.message ||
+            "Failed to load dashboard data"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, []);
+
+  // =========================
+  // STATS
+  // =========================
+
   const stats = [
     {
       title: "Total Customers",
-      value: "0",
+      value: loading ? "..." : summary.totalCustomers,
       icon: Users,
       description: "All registered customers",
     },
     {
       title: "Paid Customers",
-      value: "0",
+      value: loading ? "..." : summary.paidCustomers,
       icon: CheckCircle2,
       description: "Payment completed",
     },
     {
       title: "Unpaid Customers",
-      value: "0",
+      value: loading ? "..." : summary.unpaidCustomers,
       icon: Clock3,
       description: "Payment pending",
     },
     {
       title: "Monthly Sales",
-      value: "Rs. 0",
+      value: loading
+        ? "..."
+        : `Rs. ${Number(summary.paidAmount).toLocaleString()}`,
       icon: TrendingUp,
       description: "Current month sales",
     },
@@ -37,7 +90,10 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
 
-      {/* Heading */}
+      {/* =========================
+          HEADING
+      ========================== */}
+
       <div>
         <p className="text-sm text-blue-600 font-semibold mb-2">
           OVERVIEW
@@ -52,7 +108,20 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Stats */}
+      {/* =========================
+          ERROR MESSAGE
+      ========================== */}
+
+      {error && (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-4 text-red-600">
+          {error}
+        </div>
+      )}
+
+      {/* =========================
+          STATS
+      ========================== */}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
         {stats.map((stat) => {
@@ -95,7 +164,58 @@ export default function Dashboard() {
 
       </div>
 
-      {/* Welcome Card */}
+      {/* =========================
+          ADDITIONAL PAYMENT INFO
+      ========================== */}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        {/* Total Amount */}
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <p className="text-sm text-slate-500">
+            Total Customer Amount
+          </p>
+
+          <h2 className="text-2xl font-bold text-slate-900 mt-2">
+            {loading
+              ? "..."
+              : `Rs. ${Number(
+                  summary.totalAmount
+                ).toLocaleString()}`}
+          </h2>
+
+          <p className="text-sm text-slate-400 mt-2">
+            Total amount from all customers
+          </p>
+        </div>
+
+        {/* Unpaid Amount */}
+
+        <div className="bg-white border border-slate-200 rounded-2xl p-6">
+          <p className="text-sm text-slate-500">
+            Unpaid Amount
+          </p>
+
+          <h2 className="text-2xl font-bold text-slate-900 mt-2">
+            {loading
+              ? "..."
+              : `Rs. ${Number(
+                  summary.unpaidAmount
+                ).toLocaleString()}`}
+          </h2>
+
+          <p className="text-sm text-slate-400 mt-2">
+            Amount still pending
+          </p>
+        </div>
+
+      </div>
+
+      {/* =========================
+          WELCOME CARD
+      ========================== */}
+
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-8">
 
         <div className="relative z-10 max-w-xl">
@@ -116,11 +236,15 @@ export default function Dashboard() {
         </div>
 
         <div className="absolute -right-16 -bottom-20 w-64 h-64 bg-white/10 rounded-full" />
+
         <div className="absolute right-20 -top-20 w-48 h-48 bg-white/10 rounded-full" />
 
       </div>
 
-      {/* Quick Actions */}
+      {/* =========================
+          QUICK ACTIONS
+      ========================== */}
+
       <div>
 
         <h2 className="text-xl font-bold text-slate-900 mb-4">
@@ -133,9 +257,11 @@ export default function Dashboard() {
             href="/add-client"
             className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition"
           >
+
             <div className="flex items-center justify-between">
 
               <div>
+
                 <h3 className="font-semibold text-lg">
                   Add New Client
                 </h3>
@@ -143,20 +269,24 @@ export default function Dashboard() {
                 <p className="text-slate-500 text-sm mt-1">
                   Create a new customer record.
                 </p>
+
               </div>
 
               <ArrowUpRight className="text-blue-600" />
 
             </div>
+
           </a>
 
           <a
             href="/customers"
             className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition"
           >
+
             <div className="flex items-center justify-between">
 
               <div>
+
                 <h3 className="font-semibold text-lg">
                   View Customers
                 </h3>
@@ -164,11 +294,13 @@ export default function Dashboard() {
                 <p className="text-slate-500 text-sm mt-1">
                   Search and manage customer records.
                 </p>
+
               </div>
 
               <ArrowUpRight className="text-blue-600" />
 
             </div>
+
           </a>
 
         </div>
