@@ -37,7 +37,7 @@ export default function AddClient() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/customers",
+         "https://client-management-system-drab.vercel.app/api/customers",
         {
           ...formData,
           amount: Number(formData.amount),
