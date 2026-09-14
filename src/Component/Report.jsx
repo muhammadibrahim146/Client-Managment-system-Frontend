@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -11,6 +12,12 @@ import {
 } from "lucide-react";
 
 const Reports = () => {
+  // ========================================
+  // API URL
+  // ========================================
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // ========================================
   // STATE
   // ========================================
@@ -49,7 +56,7 @@ const Reports = () => {
         setError("");
 
         const response = await axios.get(
-           "https://client-managment-system-backend-otp.vercel.app/api/customers",
+          `${API_URL}/api/customers`
         );
 
         console.log("Customers for Reports:", response.data);
@@ -68,7 +75,7 @@ const Reports = () => {
     };
 
     fetchCustomers();
-  }, []);
+  }, [API_URL]);
 
   // ========================================
   // TOTAL CUSTOMERS
@@ -477,3 +484,4 @@ const Reports = () => {
 };
 
 export default Reports;
+

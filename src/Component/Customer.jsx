@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -12,7 +13,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-const API_URL =  "https://client-managment-system-backend-otp.vercel.app/api/customers";
+const API_URL = import.meta.env.VITE_API_URL;
+const CUSTOMERS_API = `${API_URL}/api/customers`;
 
 const months = [
   "January",
@@ -74,7 +76,7 @@ const Customers = () => {
       setLoading(true);
       setError("");
 
-      const response = await axios.get(API_URL, {
+      const response = await axios.get(CUSTOMERS_API, {
         params: {
           search: search || undefined,
           month: selectedMonth || undefined,
@@ -102,12 +104,15 @@ const Customers = () => {
     try {
       setSummaryLoading(true);
 
-      const response = await axios.get(`${API_URL}/summary`, {
-        params: {
-          month: selectedMonth || undefined,
-          status: status || undefined,
-        },
-      });
+      const response = await axios.get(
+        `${CUSTOMERS_API}/summary`,
+        {
+          params: {
+            month: selectedMonth || undefined,
+            status: status || undefined,
+          },
+        }
+      );
 
       setSummary(
         response.data.summary || {
@@ -121,6 +126,11 @@ const Customers = () => {
       );
     } catch (error) {
       console.error("Summary Error:", error);
+
+      setError(
+        error.response?.data?.message ||
+          "Failed to fetch summary"
+      );
     } finally {
       setSummaryLoading(false);
     }
@@ -156,9 +166,8 @@ const Customers = () => {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      await axios.delete(`${CUSTOMERS_API}/${id}`);
 
-      // Refresh both table and summary
       await fetchCustomers();
       await fetchSummary();
     } catch (error) {
@@ -179,8 +188,11 @@ const Customers = () => {
 
     try {
       await axios.put(
-        `${API_URL}/${editingCustomer._id}`,
-        editingCustomer
+        `${CUSTOMERS_API}/${editingCustomer._id}`,
+        {
+          ...editingCustomer,
+          amount: Number(editingCustomer.amount),
+        }
       );
 
       setEditingCustomer(null);
@@ -220,9 +232,7 @@ const Customers = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">
 
-      {/* ======================================
-          HEADER
-      ====================================== */}
+      {/* HEADER */}
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
         <div>
@@ -247,15 +257,12 @@ const Customers = () => {
         </button>
       </div>
 
-      {/* ======================================
-          SUMMARY CARDS
-      ====================================== */}
+      {/* SUMMARY CARDS */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
         {/* Total Customers */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm font-medium text-slate-500">
                 Total Customers
@@ -275,7 +282,6 @@ const Customers = () => {
         {/* Total Amount */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm font-medium text-slate-500">
                 Total Amount
@@ -297,7 +303,6 @@ const Customers = () => {
         {/* Paid */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm font-medium text-slate-500">
                 Paid Amount
@@ -323,7 +328,6 @@ const Customers = () => {
         {/* Unpaid */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-
             <div>
               <p className="text-sm font-medium text-slate-500">
                 Unpaid Amount
@@ -345,16 +349,12 @@ const Customers = () => {
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* ======================================
-          MONTH FILTER
-      ====================================== */}
+      {/* MONTH FILTER */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
         <div className="mb-4 flex items-center justify-between">
-
           <div>
             <h3 className="font-semibold text-slate-900">
               Monthly Sales
@@ -373,11 +373,9 @@ const Customers = () => {
               All Months
             </button>
           )}
-
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-2">
-
           {months.map((month) => (
             <button
               key={month}
@@ -391,13 +389,10 @@ const Customers = () => {
               {month}
             </button>
           ))}
-
         </div>
       </div>
 
-      {/* ======================================
-          SEARCH + STATUS
-      ====================================== */}
+      {/* SEARCH + STATUS */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -417,7 +412,6 @@ const Customers = () => {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
-
           </div>
 
           {/* Status */}
@@ -465,24 +459,18 @@ const Customers = () => {
                 Clear
               </button>
             )}
-
           </div>
-
         </div>
       </div>
 
-      {/* ======================================
-          ERROR
-      ====================================== */}
+      {/* ERROR */}
       {error && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
           {error}
         </div>
       )}
 
-      {/* ======================================
-          CUSTOMER TABLE
-      ====================================== */}
+      {/* CUSTOMER TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
         <div className="border-b border-slate-200 px-5 py-4">
@@ -504,9 +492,7 @@ const Customers = () => {
             <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600">
               {customers.length} records
             </span>
-
           </div>
-
         </div>
 
         {loading ? (
@@ -533,7 +519,6 @@ const Customers = () => {
             <p className="mt-1 text-sm text-slate-500">
               Try changing your filters or add a new customer.
             </p>
-
           </div>
 
         ) : (
@@ -571,7 +556,6 @@ const Customers = () => {
                   </th>
 
                 </tr>
-
               </thead>
 
               <tbody className="divide-y divide-slate-100">
@@ -680,22 +664,15 @@ const Customers = () => {
                     </td>
 
                   </tr>
-
                 ))}
 
               </tbody>
-
             </table>
-
           </div>
-
         )}
-
       </div>
 
-      {/* ======================================
-          EDIT MODAL
-      ====================================== */}
+      {/* EDIT MODAL */}
       {editingCustomer && (
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -898,15 +875,12 @@ const Customers = () => {
               </div>
 
             </form>
-
           </div>
-
         </div>
-
       )}
-
     </div>
   );
 };
 
 export default Customers;
+

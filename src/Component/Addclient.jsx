@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-
+const API_URL = import.meta.env.VITE_API_URL;
 export default function AddClient() {
   const [formData, setFormData] = useState({
     name: "",
@@ -37,7 +37,7 @@ export default function AddClient() {
 
     try {
       const response = await axios.post(
-         "https://client-managment-system-backend-otp.vercel.app/api/customers",
+         `${API_URL}/api/customers`,
         {
           ...formData,
           amount: Number(formData.amount),

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -23,6 +24,12 @@ export default function Dashboard() {
   const [error, setError] = useState("");
 
   // =========================
+  // API URL
+  // =========================
+
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  // =========================
   // GET DASHBOARD SUMMARY
   // =========================
 
@@ -33,12 +40,21 @@ export default function Dashboard() {
         setError("");
 
         const response = await axios.get(
-           "https://client-managment-system-backend-otp.vercel.app/api/customers",
+          `${API_URL}/api/customers/summary`
         );
 
         console.log("Dashboard Summary:", response.data);
 
-        setSummary(response.data.summary);
+        setSummary(
+          response.data.summary || {
+            totalCustomers: 0,
+            paidCustomers: 0,
+            unpaidCustomers: 0,
+            totalAmount: 0,
+            paidAmount: 0,
+            unpaidAmount: 0,
+          }
+        );
       } catch (error) {
         console.error("Dashboard API Error:", error);
 
@@ -52,7 +68,7 @@ export default function Dashboard() {
     };
 
     fetchSummary();
-  }, []);
+  }, [API_URL]);
 
   // =========================
   // STATS
@@ -132,7 +148,6 @@ export default function Dashboard() {
               key={stat.title}
               className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
-
               <div className="flex items-start justify-between">
 
                 <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -157,7 +172,6 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400 mt-2">
                 {stat.description}
               </p>
-
             </div>
           );
         })}
@@ -257,7 +271,6 @@ export default function Dashboard() {
             href="/add-client"
             className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition"
           >
-
             <div className="flex items-center justify-between">
 
               <div>
@@ -275,14 +288,12 @@ export default function Dashboard() {
               <ArrowUpRight className="text-blue-600" />
 
             </div>
-
           </a>
 
           <a
             href="/customers"
             className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition"
           >
-
             <div className="flex items-center justify-between">
 
               <div>
@@ -300,7 +311,6 @@ export default function Dashboard() {
               <ArrowUpRight className="text-blue-600" />
 
             </div>
-
           </a>
 
         </div>
@@ -310,3 +320,4 @@ export default function Dashboard() {
     </div>
   );
 }
+
