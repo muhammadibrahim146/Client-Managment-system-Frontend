@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -30,33 +29,113 @@ export default function Dashboard() {
   const API_URL = import.meta.env.VITE_API_URL;
 
   // =========================
-  // GET DASHBOARD SUMMARY
+  // MONTHS
+  // =========================
+
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  // =========================
+  // GET CURRENT MONTH BILLING
   // =========================
 
   useEffect(() => {
-    const fetchSummary = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setError("");
 
+        const currentDate = new Date();
+
+        const currentMonth =
+          months[currentDate.getMonth()];
+
+        const currentYear =
+          currentDate.getFullYear();
+
+        // =========================
+        // GET MONTHLY BILLING RECORDS
+        // =========================
+
         const response = await axios.get(
-          `${API_URL}/api/customers/summary`
-        );
-
-        console.log("Dashboard Summary:", response.data);
-
-        setSummary(
-          response.data.summary || {
-            totalCustomers: 0,
-            paidCustomers: 0,
-            unpaidCustomers: 0,
-            totalAmount: 0,
-            paidAmount: 0,
-            unpaidAmount: 0,
+          `${API_URL}/api/billing`,
+          {
+            params: {
+              month: currentMonth,
+              year: currentYear,
+            },
           }
         );
+
+        console.log(
+          "Dashboard Billing Records:",
+          response.data
+        );
+
+        const records =
+          response.data.billingRecords || [];
+
+        // =========================
+        // CALCULATE SUMMARY
+        // =========================
+
+        const totalCustomers = records.length;
+
+        const paidCustomers = records.filter(
+          (record) => record.status === "Paid"
+        ).length;
+
+        const unpaidCustomers = records.filter(
+          (record) => record.status === "Unpaid"
+        ).length;
+
+        const totalAmount = records.reduce(
+          (total, record) =>
+            total + Number(record.amount || 0),
+          0
+        );
+
+        const paidAmount = records
+          .filter((record) => record.status === "Paid")
+          .reduce(
+            (total, record) =>
+              total + Number(record.amount || 0),
+            0
+          );
+
+        const unpaidAmount = records
+          .filter((record) => record.status === "Unpaid")
+          .reduce(
+            (total, record) =>
+              total + Number(record.amount || 0),
+            0
+          );
+
+        setSummary({
+          totalCustomers,
+          paidCustomers,
+          unpaidCustomers,
+          totalAmount,
+          paidAmount,
+          unpaidAmount,
+        });
       } catch (error) {
-        console.error("Dashboard API Error:", error);
+        console.error(
+          "Dashboard API Error:",
+          error
+        );
 
         setError(
           error.response?.data?.message ||
@@ -67,7 +146,7 @@ export default function Dashboard() {
       }
     };
 
-    fetchSummary();
+    fetchDashboardData();
   }, [API_URL]);
 
   // =========================
@@ -77,29 +156,40 @@ export default function Dashboard() {
   const stats = [
     {
       title: "Total Customers",
-      value: loading ? "..." : summary.totalCustomers,
+      value: loading
+        ? "..."
+        : summary.totalCustomers,
       icon: Users,
-      description: "All registered customers",
+      description: "Current month customers",
     },
+
     {
       title: "Paid Customers",
-      value: loading ? "..." : summary.paidCustomers,
+      value: loading
+        ? "..."
+        : summary.paidCustomers,
       icon: CheckCircle2,
       description: "Payment completed",
     },
+
     {
       title: "Unpaid Customers",
-      value: loading ? "..." : summary.unpaidCustomers,
+      value: loading
+        ? "..."
+        : summary.unpaidCustomers,
       icon: Clock3,
       description: "Payment pending",
     },
+
     {
       title: "Monthly Sales",
       value: loading
         ? "..."
-        : `Rs. ${Number(summary.paidAmount).toLocaleString()}`,
+        : `Rs. ${Number(
+            summary.paidAmount
+          ).toLocaleString()}`,
       icon: TrendingUp,
-      description: "Current month sales",
+      description: "Current month paid sales",
     },
   ];
 
@@ -148,6 +238,7 @@ export default function Dashboard() {
               key={stat.title}
               className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
             >
+
               <div className="flex items-start justify-between">
 
                 <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -172,6 +263,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400 mt-2">
                 {stat.description}
               </p>
+
             </div>
           );
         })}
@@ -187,6 +279,7 @@ export default function Dashboard() {
         {/* Total Amount */}
 
         <div className="bg-white border border-slate-200 rounded-2xl p-6">
+
           <p className="text-sm text-slate-500">
             Total Customer Amount
           </p>
@@ -200,13 +293,15 @@ export default function Dashboard() {
           </h2>
 
           <p className="text-sm text-slate-400 mt-2">
-            Total amount from all customers
+            Total amount for current month
           </p>
+
         </div>
 
         {/* Unpaid Amount */}
 
         <div className="bg-white border border-slate-200 rounded-2xl p-6">
+
           <p className="text-sm text-slate-500">
             Unpaid Amount
           </p>
@@ -222,6 +317,7 @@ export default function Dashboard() {
           <p className="text-sm text-slate-400 mt-2">
             Amount still pending
           </p>
+
         </div>
 
       </div>
@@ -271,6 +367,7 @@ export default function Dashboard() {
             href="/add-client"
             className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition"
           >
+
             <div className="flex items-center justify-between">
 
               <div>
@@ -288,12 +385,14 @@ export default function Dashboard() {
               <ArrowUpRight className="text-blue-600" />
 
             </div>
+
           </a>
 
           <a
             href="/customers"
             className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-blue-300 hover:shadow-md transition"
           >
+
             <div className="flex items-center justify-between">
 
               <div>
@@ -311,6 +410,7 @@ export default function Dashboard() {
               <ArrowUpRight className="text-blue-600" />
 
             </div>
+
           </a>
 
         </div>
@@ -320,4 +420,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
