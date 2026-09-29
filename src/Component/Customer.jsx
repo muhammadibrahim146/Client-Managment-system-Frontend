@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 import {
@@ -15,6 +14,7 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL;
 const CUSTOMERS_API = `${API_URL}/api/customers`;
+const BILLING_API = `${API_URL}/api/billing`;
 
 const months = [
   "January",
@@ -32,21 +32,17 @@ const months = [
 ];
 
 const Customers = () => {
-  // =========================
-  // CUSTOMERS
-  // =========================
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonth = months[currentDate.getMonth()];
+
   const [customers, setCustomers] = useState([]);
 
-  // =========================
-  // FILTERS
-  // =========================
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(currentYear);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
 
-  // =========================
-  // SUMMARY
-  // =========================
   const [summary, setSummary] = useState({
     totalCustomers: 0,
     totalAmount: 0,
@@ -56,41 +52,36 @@ const Customers = () => {
     unpaidCustomers: 0,
   });
 
-  // =========================
-  // STATES
-  // =========================
   const [loading, setLoading] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // =========================
-  // EDIT MODAL
-  // =========================
   const [editingCustomer, setEditingCustomer] = useState(null);
 
   // =========================
-  // FETCH CUSTOMERS
+  // FETCH MONTHLY BILLING
   // =========================
   const fetchCustomers = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await axios.get(CUSTOMERS_API, {
+      const response = await axios.get(BILLING_API, {
         params: {
+          month: selectedMonth,
+          year: selectedYear,
           search: search || undefined,
-          month: selectedMonth || undefined,
           status: status || undefined,
         },
       });
 
-      setCustomers(response.data.customers || []);
+      setCustomers(response.data.billingRecords || []);
     } catch (error) {
-      console.error("Fetch Customers Error:", error);
+      console.error("Fetch Billing Records Error:", error);
 
       setError(
         error.response?.data?.message ||
-          "Failed to fetch customers"
+          "Failed to fetch monthly billing records"
       );
     } finally {
       setLoading(false);
@@ -98,21 +89,18 @@ const Customers = () => {
   };
 
   // =========================
-  // FETCH SUMMARY
+  // FETCH MONTHLY SUMMARY
   // =========================
   const fetchSummary = async () => {
     try {
       setSummaryLoading(true);
 
-      const response = await axios.get(
-        `${CUSTOMERS_API}/summary`,
-        {
-          params: {
-            month: selectedMonth || undefined,
-            status: status || undefined,
-          },
-        }
-      );
+      const response = await axios.get(`${BILLING_API}/summary`, {
+        params: {
+          month: selectedMonth,
+          year: selectedYear,
+        },
+      });
 
       setSummary(
         response.data.summary || {
@@ -125,11 +113,11 @@ const Customers = () => {
         }
       );
     } catch (error) {
-      console.error("Summary Error:", error);
+      console.error("Billing Summary Error:", error);
 
       setError(
         error.response?.data?.message ||
-          "Failed to fetch summary"
+          "Failed to fetch monthly summary"
       );
     } finally {
       setSummaryLoading(false);
@@ -140,9 +128,13 @@ const Customers = () => {
   // LOAD DATA
   // =========================
   useEffect(() => {
-    fetchCustomers();
-    fetchSummary();
-  }, [selectedMonth, status]);
+    const loadData = async () => {
+      await fetchCustomers();
+      await fetchSummary();
+    };
+
+    loadData();
+  }, [selectedMonth, selectedYear, status]);
 
   // =========================
   // SEARCH
@@ -190,8 +182,10 @@ const Customers = () => {
       await axios.put(
         `${CUSTOMERS_API}/${editingCustomer._id}`,
         {
-          ...editingCustomer,
-          amount: Number(editingCustomer.amount),
+          name: editingCustomer.name,
+          address: editingCustomer.address,
+          email: editingCustomer.email,
+          phone: editingCustomer.phone,
         }
       );
 
@@ -210,10 +204,60 @@ const Customers = () => {
   };
 
   // =========================
+  // UPDATE MONTHLY AMOUNT
+  // =========================
+  const handleAmountUpdate = async (billingId, amount) => {
+    try {
+      const numericAmount = Number(amount);
+
+      if (Number.isNaN(numericAmount) || numericAmount < 0) {
+        alert("Please enter a valid amount");
+        return;
+      }
+
+      await axios.put(`${BILLING_API}/${billingId}`, {
+        amount: numericAmount,
+      });
+
+      await fetchCustomers();
+      await fetchSummary();
+    } catch (error) {
+      console.error("Amount Update Error:", error);
+
+      alert(
+        error.response?.data?.message ||
+          "Failed to update amount"
+      );
+    }
+  };
+
+  // =========================
+  // UPDATE MONTHLY STATUS
+  // =========================
+  const handleStatusUpdate = async (billingId, newStatus) => {
+    try {
+      await axios.put(`${BILLING_API}/${billingId}`, {
+        status: newStatus,
+      });
+
+      await fetchCustomers();
+      await fetchSummary();
+    } catch (error) {
+      console.error("Status Update Error:", error);
+
+      alert(
+        error.response?.data?.message ||
+          "Failed to update status"
+      );
+    }
+  };
+
+  // =========================
   // CLEAR FILTERS
   // =========================
   const clearFilters = () => {
-    setSelectedMonth("");
+    setSelectedMonth(currentMonth);
+    setSelectedYear(currentYear);
     setSearch("");
     setStatus("");
   };
@@ -231,10 +275,8 @@ const Customers = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8">
-
       {/* HEADER */}
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
         <div>
           <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">
             Customers
@@ -246,9 +288,9 @@ const Customers = () => {
         </div>
 
         <button
-          onClick={() => {
-            fetchCustomers();
-            fetchSummary();
+          onClick={async () => {
+            await fetchCustomers();
+            await fetchSummary();
           }}
           className="flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-100"
         >
@@ -259,8 +301,6 @@ const Customers = () => {
 
       {/* SUMMARY CARDS */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-        {/* Total Customers */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -279,7 +319,6 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Total Amount */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -300,7 +339,6 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Paid */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -325,7 +363,6 @@ const Customers = () => {
           </div>
         </div>
 
-        {/* Unpaid */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -353,7 +390,6 @@ const Customers = () => {
 
       {/* MONTH FILTER */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-slate-900">
@@ -361,18 +397,19 @@ const Customers = () => {
             </h3>
 
             <p className="text-sm text-slate-500">
-              Select a month to view its customers
+              Select a month to view its billing records
             </p>
           </div>
 
-          {selectedMonth && (
-            <button
-              onClick={() => setSelectedMonth("")}
-              className="text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              All Months
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setSelectedMonth(currentMonth);
+              setSelectedYear(currentYear);
+            }}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            Current Month
+          </button>
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-2">
@@ -394,12 +431,8 @@ const Customers = () => {
 
       {/* SEARCH + STATUS */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
-          {/* Search */}
           <div className="relative w-full lg:max-w-md">
-
             <Search
               size={19}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -407,16 +440,14 @@ const Customers = () => {
 
             <input
               type="text"
-              placeholder="Search customer by name..."
+              placeholder="Search customer by name or phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
             />
           </div>
 
-          {/* Status */}
           <div className="flex flex-wrap gap-2">
-
             <button
               onClick={() => setStatus("")}
               className={`rounded-xl px-4 py-2.5 text-sm font-medium transition ${
@@ -450,7 +481,7 @@ const Customers = () => {
               Unpaid
             </button>
 
-            {(selectedMonth || search || status) && (
+            {(search || status || selectedMonth !== currentMonth || selectedYear !== currentYear) && (
               <button
                 onClick={clearFilters}
                 className="flex items-center gap-1 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
@@ -472,20 +503,15 @@ const Customers = () => {
 
       {/* CUSTOMER TABLE */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-
         <div className="border-b border-slate-200 px-5 py-4">
-
           <div className="flex items-center justify-between">
-
             <div>
               <h3 className="font-semibold text-slate-900">
                 Customer List
               </h3>
 
               <p className="text-sm text-slate-500">
-                {selectedMonth
-                  ? `${selectedMonth} customers`
-                  : "All customers"}
+                {selectedMonth} {selectedYear} billing records
               </p>
             </div>
 
@@ -496,18 +522,14 @@ const Customers = () => {
         </div>
 
         {loading ? (
-
           <div className="flex min-h-[300px] items-center justify-center">
             <div className="flex items-center gap-3 text-slate-500">
               <RefreshCw className="animate-spin" size={20} />
               Loading customers...
             </div>
           </div>
-
         ) : customers.length === 0 ? (
-
           <div className="flex min-h-[300px] flex-col items-center justify-center px-5 text-center">
-
             <div className="mb-4 rounded-full bg-slate-100 p-4">
               <Users size={28} className="text-slate-400" />
             </div>
@@ -520,17 +542,11 @@ const Customers = () => {
               Try changing your filters or add a new customer.
             </p>
           </div>
-
         ) : (
-
           <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[850px]">
-
+            <table className="w-full min-w-[950px]">
               <thead className="bg-slate-50">
-
                 <tr className="border-b border-slate-200">
-
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Customer
                   </th>
@@ -554,288 +570,200 @@ const Customers = () => {
                   <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Actions
                   </th>
-
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
+                {customers.map((record) => {
+                  const customer = record.customerId;
 
-                {customers.map((customer) => (
+                  if (!customer) return null;
 
-                  <tr
-                    key={customer._id}
-                    className="transition hover:bg-slate-50"
-                  >
+                  return (
+                    <tr
+                      key={record._id}
+                      className="transition hover:bg-slate-50"
+                    >
+                      <td className="px-5 py-4">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {customer.name}
+                          </p>
 
-                    {/* Customer */}
-                    <td className="px-5 py-4">
+                          <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">
+                            {customer.address || "No address"}
+                          </p>
+                        </div>
+                      </td>
 
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {customer.name}
+                      <td className="px-5 py-4">
+                        <p className="text-sm text-slate-700">
+                          {customer.phone || "-"}
                         </p>
 
-                        <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">
-                          {customer.address || "No address"}
+                        <p className="mt-1 text-xs text-slate-500">
+                          {customer.email || "-"}
                         </p>
-                      </div>
+                      </td>
 
-                    </td>
-
-                    {/* Contact */}
-                    <td className="px-5 py-4">
-
-                      <p className="text-sm text-slate-700">
-                        {customer.phone || "-"}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {customer.email || "-"}
-                      </p>
-
-                    </td>
-
-                    {/* Month */}
-                    <td className="px-5 py-4">
-
-                      <span className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700">
-                        {customer.month}
-                      </span>
-
-                    </td>
-
-                    {/* Amount */}
-                    <td className="px-5 py-4">
-
-                      <p className="font-semibold text-slate-900">
-                        {formatMoney(customer.amount)}
-                      </p>
-
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-5 py-4">
-
-                      {customer.status === "Paid" ? (
-
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-                          <CheckCircle size={14} />
-                          Paid
+                      <td className="px-5 py-4">
+                        <span className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700">
+                          {record.month} {record.year}
                         </span>
+                      </td>
 
-                      ) : (
+                      <td className="px-5 py-4">
+                        <input
+                          type="number"
+                          min="0"
+                          defaultValue={record.amount ?? 0}
+                          onBlur={(e) => {
+                            const newAmount = e.target.value;
 
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700">
-                          <Clock size={14} />
-                          Unpaid
-                        </span>
+                            if (Number(newAmount) !== Number(record.amount)) {
+                              handleAmountUpdate(record._id, newAmount);
+                            }
+                          }}
+                          className="w-32 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        />
+                      </td>
 
-                      )}
-
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-5 py-4">
-
-                      <div className="flex justify-end gap-2">
-
-                        <button
-                          onClick={() =>
-                            setEditingCustomer({ ...customer })
+                      <td className="px-5 py-4">
+                        <select
+                          value={record.status}
+                          onChange={(e) =>
+                            handleStatusUpdate(
+                              record._id,
+                              e.target.value
+                            )
                           }
-                          className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                          title="Edit"
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium outline-none ${
+                            record.status === "Paid"
+                              ? "border-green-200 bg-green-50 text-green-700"
+                              : "border-red-200 bg-red-50 text-red-700"
+                          }`}
                         >
-                          <Pencil size={17} />
-                        </button>
+                          <option value="Paid">Paid</option>
+                          <option value="Unpaid">Unpaid</option>
+                        </select>
+                      </td>
 
-                        <button
-                          onClick={() =>
-                            handleDelete(customer._id)
-                          }
-                          className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
-                          title="Delete"
-                        >
-                          <Trash2 size={17} />
-                        </button>
+                      <td className="px-5 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              setEditingCustomer({
+                                _id: customer._id,
+                                name: customer.name || "",
+                                address: customer.address || "",
+                                email: customer.email || "",
+                                phone: customer.phone || "",
+                              })
+                            }
+                            className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100"
+                            title="Edit Customer"
+                          >
+                            <Pencil size={17} />
+                          </button>
 
-                      </div>
-
-                    </td>
-
-                  </tr>
-                ))}
-
+                          <button
+                            onClick={() => handleDelete(customer._id)}
+                            className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50"
+                            title="Delete Customer"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* EDIT MODAL */}
+      {/* EDIT CUSTOMER MODAL */}
       {editingCustomer && (
-
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-6 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">
                   Edit Customer
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Update customer information
+                  Update permanent customer information
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={() => setEditingCustomer(null)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
               >
                 <X size={20} />
               </button>
-
             </div>
 
-            {/* Form */}
-            <form
-              onSubmit={handleUpdate}
-              className="space-y-5 p-6"
-            >
+            <form onSubmit={handleUpdate} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Name
+                </label>
 
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
-                {/* Name */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Name
-                  </label>
-
-                  <input
-                    type="text"
-                    value={editingCustomer.name || ""}
-                    onChange={(e) =>
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        name: e.target.value,
-                      })
-                    }
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Phone
-                  </label>
-
-                  <input
-                    type="text"
-                    value={editingCustomer.phone || ""}
-                    onChange={(e) =>
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        phone: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Email
-                  </label>
-
-                  <input
-                    type="email"
-                    value={editingCustomer.email || ""}
-                    onChange={(e) =>
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        email: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                {/* Month */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Month
-                  </label>
-
-                  <select
-                    value={editingCustomer.month || ""}
-                    onChange={(e) =>
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        month: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  >
-                    {months.map((month) => (
-                      <option key={month} value={month}>
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Amount */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Amount
-                  </label>
-
-                  <input
-                    type="number"
-                    min="0"
-                    value={editingCustomer.amount || ""}
-                    onChange={(e) =>
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        amount: Number(e.target.value),
-                      })
-                    }
-                    required
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    Status
-                  </label>
-
-                  <select
-                    value={editingCustomer.status || ""}
-                    onChange={(e) =>
-                      setEditingCustomer({
-                        ...editingCustomer,
-                        status: e.target.value,
-                      })
-                    }
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  >
-                    <option value="Paid">Paid</option>
-                    <option value="Unpaid">Unpaid</option>
-                  </select>
-                </div>
-
+                <input
+                  type="text"
+                  required
+                  value={editingCustomer.name}
+                  onChange={(e) =>
+                    setEditingCustomer({
+                      ...editingCustomer,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
               </div>
 
-              {/* Address */}
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Phone
+                </label>
+
+                <input
+                  type="text"
+                  value={editingCustomer.phone}
+                  onChange={(e) =>
+                    setEditingCustomer({
+                      ...editingCustomer,
+                      phone: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Email
+                </label>
+
+                <input
+                  type="email"
+                  value={editingCustomer.email}
+                  onChange={(e) =>
+                    setEditingCustomer({
+                      ...editingCustomer,
+                      email: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Address
@@ -843,7 +771,8 @@ const Customers = () => {
 
                 <textarea
                   rows="3"
-                  value={editingCustomer.address || ""}
+                  required
+                  value={editingCustomer.address}
                   onChange={(e) =>
                     setEditingCustomer({
                       ...editingCustomer,
@@ -854,9 +783,7 @@ const Customers = () => {
                 />
               </div>
 
-              {/* Buttons */}
               <div className="flex justify-end gap-3 border-t border-slate-200 pt-5">
-
                 <button
                   type="button"
                   onClick={() => setEditingCustomer(null)}
@@ -871,9 +798,7 @@ const Customers = () => {
                 >
                   Update Customer
                 </button>
-
               </div>
-
             </form>
           </div>
         </div>
@@ -883,4 +808,3 @@ const Customers = () => {
 };
 
 export default Customers;
-
