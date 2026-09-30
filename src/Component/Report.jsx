@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 
@@ -9,6 +8,7 @@ import {
   DollarSign,
   Download,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 
 const Reports = () => {
@@ -17,14 +17,15 @@ const Reports = () => {
   // ========================================
 
   const API_URL = import.meta.env.VITE_API_URL;
+  const BILLING_API = `${API_URL}/api/billing`;
 
   // ========================================
-  // STATE
+  // CURRENT DATE
   // ========================================
 
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthIndex = currentDate.getMonth();
 
   // ========================================
   // MONTHS
@@ -46,124 +47,142 @@ const Reports = () => {
   ];
 
   // ========================================
-  // GET CUSTOMERS FROM API
+  // STATE
+  // ========================================
+
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  const [currentSummary, setCurrentSummary] = useState({
+    totalCustomers: 0,
+    totalAmount: 0,
+    paidAmount: 0,
+    unpaidAmount: 0,
+    paidCustomers: 0,
+    unpaidCustomers: 0,
+  });
+
+  const [monthlyReports, setMonthlyReports] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // ========================================
+  // FETCH MONTHLY REPORTS
+  // ========================================
+
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // ----------------------------------------
+      // Get summary for every month
+      // ----------------------------------------
+
+      const requests = months.map((month) =>
+        axios.get(`${BILLING_API}/summary`, {
+          params: {
+            month,
+            year: selectedYear,
+          },
+        })
+      );
+
+      const responses = await Promise.all(requests);
+
+      const reports = responses.map((response, index) => {
+        const summary = response.data.summary || {};
+
+        return {
+          month: months[index],
+
+          customers: Number(
+            summary.totalCustomers || 0
+          ),
+
+          paid: Number(
+            summary.paidCustomers || 0
+          ),
+
+          unpaid: Number(
+            summary.unpaidCustomers || 0
+          ),
+
+          amount: Number(
+            summary.totalAmount || 0
+          ),
+
+          paidAmount: Number(
+            summary.paidAmount || 0
+          ),
+
+          unpaidAmount: Number(
+            summary.unpaidAmount || 0
+          ),
+        };
+      });
+
+      setMonthlyReports(reports);
+
+      // ----------------------------------------
+      // Current month summary
+      // ----------------------------------------
+
+      const currentMonthSummary =
+        reports[currentMonthIndex];
+
+      setCurrentSummary({
+        totalCustomers:
+          currentMonthSummary?.customers || 0,
+
+        totalAmount:
+          currentMonthSummary?.amount || 0,
+
+        paidAmount:
+          currentMonthSummary?.paidAmount || 0,
+
+        unpaidAmount:
+          currentMonthSummary?.unpaidAmount || 0,
+
+        paidCustomers:
+          currentMonthSummary?.paid || 0,
+
+        unpaidCustomers:
+          currentMonthSummary?.unpaid || 0,
+      });
+
+    } catch (error) {
+      console.error(
+        "Reports API Error:",
+        error
+      );
+
+      setError(
+        error.response?.data?.message ||
+          "Failed to load reports"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========================================
+  // LOAD REPORTS
   // ========================================
 
   useEffect(() => {
-    const fetchCustomers = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await axios.get(
-          `${API_URL}/api/customers`
-        );
-
-        console.log("Customers for Reports:", response.data);
-
-        setCustomers(response.data.customers || []);
-      } catch (error) {
-        console.error("Reports API Error:", error);
-
-        setError(
-          error.response?.data?.message ||
-            "Failed to load reports"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCustomers();
-  }, [API_URL]);
+    fetchReports();
+  }, [selectedYear]);
 
   // ========================================
-  // TOTAL CUSTOMERS
+  // FORMAT MONEY
   // ========================================
 
-  const totalCustomers = customers.length;
-
-  // ========================================
-  // PAID CUSTOMERS
-  // ========================================
-
-  const totalPaid = customers.filter(
-    (customer) => customer.status === "Paid"
-  ).length;
-
-  // ========================================
-  // UNPAID CUSTOMERS
-  // ========================================
-
-  const totalUnpaid = customers.filter(
-    (customer) => customer.status === "Unpaid"
-  ).length;
-
-  // ========================================
-  // TOTAL AMOUNT
-  // ========================================
-
-  const totalAmount = customers.reduce(
-    (total, customer) =>
-      total + Number(customer.amount || 0),
-    0
-  );
-
-  // ========================================
-  // PAID AMOUNT
-  // ========================================
-
-  const paidAmount = customers
-    .filter((customer) => customer.status === "Paid")
-    .reduce(
-      (total, customer) =>
-        total + Number(customer.amount || 0),
-      0
-    );
-
-  // ========================================
-  // PENDING / UNPAID AMOUNT
-  // ========================================
-
-  const pendingAmount = customers
-    .filter((customer) => customer.status === "Unpaid")
-    .reduce(
-      (total, customer) =>
-        total + Number(customer.amount || 0),
-      0
-    );
-
-  // ========================================
-  // MONTHLY REPORT
-  // ========================================
-
-  const monthlyReports = months.map((month) => {
-    const monthCustomers = customers.filter(
-      (customer) => customer.month === month
-    );
-
-    const paidCustomers = monthCustomers.filter(
-      (customer) => customer.status === "Paid"
-    );
-
-    const unpaidCustomers = monthCustomers.filter(
-      (customer) => customer.status === "Unpaid"
-    );
-
-    const amount = monthCustomers.reduce(
-      (total, customer) =>
-        total + Number(customer.amount || 0),
-      0
-    );
-
-    return {
-      month,
-      customers: monthCustomers.length,
-      paid: paidCustomers.length,
-      unpaid: unpaidCustomers.length,
-      amount,
-    };
-  });
+  const formatMoney = (amount) => {
+    return `Rs. ${Number(
+      amount || 0
+    ).toLocaleString("en-PK")}`;
+  };
 
   // ========================================
   // SUMMARY CARDS
@@ -172,24 +191,35 @@ const Reports = () => {
   const cards = [
     {
       title: "Total Customers",
-      value: loading ? "..." : totalCustomers,
+      value: loading
+        ? "..."
+        : currentSummary.totalCustomers,
       icon: Users,
     },
+
     {
       title: "Paid Customers",
-      value: loading ? "..." : totalPaid,
+      value: loading
+        ? "..."
+        : currentSummary.paidCustomers,
       icon: CheckCircle,
     },
+
     {
       title: "Unpaid Customers",
-      value: loading ? "..." : totalUnpaid,
+      value: loading
+        ? "..."
+        : currentSummary.unpaidCustomers,
       icon: Clock,
     },
+
     {
       title: "Total Amount",
       value: loading
         ? "..."
-        : `Rs. ${totalAmount.toLocaleString()}`,
+        : formatMoney(
+            currentSummary.totalAmount
+          ),
       icon: DollarSign,
     },
   ];
@@ -200,11 +230,16 @@ const Reports = () => {
 
   if (loading) {
     return (
-      <div className="p-6 bg-gray-50 min-h-screen">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-gray-500">
-            Loading reports...
-          </p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="flex h-64 items-center justify-center">
+          <div className="flex items-center gap-3 text-gray-500">
+            <RefreshCw
+              size={20}
+              className="animate-spin"
+            />
+
+            <p>Loading reports...</p>
+          </div>
         </div>
       </div>
     );
@@ -215,39 +250,78 @@ const Reports = () => {
   // ========================================
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-gray-50 p-6">
 
       {/* ========================================
           HEADER
       ======================================== */}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
             Reports
           </h1>
 
-          <p className="text-gray-500 mt-1">
+          <p className="mt-1 text-gray-500">
             View customer and payment reports
           </p>
         </div>
 
-        {/* Export Buttons */}
+        {/* Year + Export */}
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+
+          {/* YEAR */}
+
+          <select
+            value={selectedYear}
+            onChange={(e) =>
+              setSelectedYear(
+                Number(e.target.value)
+              )
+            }
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 outline-none focus:border-blue-500"
+          >
+            <option value={currentYear}>
+              {currentYear}
+            </option>
+
+            <option value={currentYear - 1}>
+              {currentYear - 1}
+            </option>
+
+            <option value={currentYear - 2}>
+              {currentYear - 2}
+            </option>
+          </select>
+
+          {/* REFRESH */}
 
           <button
             type="button"
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            onClick={fetchReports}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-gray-700 transition hover:bg-gray-100"
+          >
+            <RefreshCw size={18} />
+            Refresh
+          </button>
+
+          {/* EXPORT EXCEL */}
+
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white transition hover:bg-green-700"
           >
             <Download size={18} />
             Export Excel
           </button>
 
+          {/* EXPORT PDF */}
+
           <button
             type="button"
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-white transition hover:bg-red-700"
           >
             <FileText size={18} />
             Export PDF
@@ -261,16 +335,33 @@ const Reports = () => {
       ======================================== */}
 
       {error && (
-        <div className="mb-6 rounded-lg bg-red-100 border border-red-200 p-4 text-red-700">
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-100 p-4 text-red-700">
           {error}
         </div>
       )}
 
       {/* ========================================
+          CURRENT MONTH INFO
+      ======================================== */}
+
+      <div className="mb-6 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+
+        <p className="text-sm text-gray-500">
+          Current Month
+        </p>
+
+        <h2 className="mt-1 text-xl font-bold text-gray-800">
+          {months[currentMonthIndex]}{" "}
+          {selectedYear}
+        </h2>
+
+      </div>
+
+      {/* ========================================
           SUMMARY CARDS
       ======================================== */}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
 
         {cards.map((card, index) => {
           const Icon = card.icon;
@@ -278,7 +369,7 @@ const Reports = () => {
           return (
             <div
               key={index}
-              className="bg-white rounded-xl shadow-sm border border-gray-100 p-5"
+              className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
             >
 
               <div className="flex items-center justify-between">
@@ -289,17 +380,19 @@ const Reports = () => {
                     {card.title}
                   </p>
 
-                  <h2 className="text-2xl font-bold text-gray-800 mt-2">
+                  <h2 className="mt-2 text-2xl font-bold text-gray-800">
                     {card.value}
                   </h2>
 
                 </div>
 
-                <div className="p-3 bg-gray-100 rounded-lg">
+                <div className="rounded-lg bg-gray-100 p-3">
+
                   <Icon
                     size={24}
                     className="text-gray-700"
                   />
+
                 </div>
 
               </div>
@@ -314,52 +407,60 @@ const Reports = () => {
           PAYMENT SUMMARY
       ======================================== */}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+      <div className="mb-8 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
 
-        <h2 className="text-lg font-semibold text-gray-800 mb-5">
-          Payment Summary
+        <h2 className="mb-5 text-lg font-semibold text-gray-800">
+          Payment Summary -{" "}
+          {months[currentMonthIndex]}{" "}
+          {selectedYear}
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
 
-          {/* Total */}
+          {/* TOTAL */}
 
-          <div className="border rounded-lg p-4">
+          <div className="rounded-lg border p-4">
 
             <p className="text-sm text-gray-500">
               Total Amount
             </p>
 
-            <h3 className="text-xl font-bold text-gray-800 mt-2">
-              Rs. {totalAmount.toLocaleString()}
+            <h3 className="mt-2 text-xl font-bold text-gray-800">
+              {formatMoney(
+                currentSummary.totalAmount
+              )}
             </h3>
 
           </div>
 
-          {/* Paid */}
+          {/* PAID */}
 
-          <div className="border rounded-lg p-4">
+          <div className="rounded-lg border p-4">
 
             <p className="text-sm text-gray-500">
               Paid Amount
             </p>
 
-            <h3 className="text-xl font-bold text-green-600 mt-2">
-              Rs. {paidAmount.toLocaleString()}
+            <h3 className="mt-2 text-xl font-bold text-green-600">
+              {formatMoney(
+                currentSummary.paidAmount
+              )}
             </h3>
 
           </div>
 
-          {/* Pending */}
+          {/* UNPAID */}
 
-          <div className="border rounded-lg p-4">
+          <div className="rounded-lg border p-4">
 
             <p className="text-sm text-gray-500">
               Pending Amount
             </p>
 
-            <h3 className="text-xl font-bold text-red-600 mt-2">
-              Rs. {pendingAmount.toLocaleString()}
+            <h3 className="mt-2 text-xl font-bold text-red-600">
+              {formatMoney(
+                currentSummary.unpaidAmount
+              )}
             </h3>
 
           </div>
@@ -371,21 +472,18 @@ const Reports = () => {
           MONTHLY REPORT
       ======================================== */}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
 
-        <div className="flex items-center justify-between mb-5">
+        <div className="mb-5">
 
-          <div>
+          <h2 className="text-lg font-semibold text-gray-800">
+            Monthly Customer Report
+          </h2>
 
-            <h2 className="text-lg font-semibold text-gray-800">
-              Monthly Customer Report
-            </h2>
-
-            <p className="text-sm text-gray-500 mt-1">
-              Customer and payment statistics by month
-            </p>
-
-          </div>
+          <p className="mt-1 text-sm text-gray-500">
+            Customer and payment statistics for{" "}
+            {selectedYear}
+          </p>
 
         </div>
 
@@ -417,6 +515,14 @@ const Reports = () => {
                   Total Amount
                 </th>
 
+                <th className="px-4 py-3 text-sm font-semibold text-gray-600">
+                  Paid Amount
+                </th>
+
+                <th className="px-4 py-3 text-sm font-semibold text-gray-600">
+                  Pending Amount
+                </th>
+
               </tr>
 
             </thead>
@@ -427,45 +533,63 @@ const Reports = () => {
 
                 <tr
                   key={report.month}
-                  className="border-b hover:bg-gray-50 transition"
+                  className="border-b transition hover:bg-gray-50"
                 >
 
-                  {/* Month */}
+                  {/* MONTH */}
 
                   <td className="px-4 py-4 font-medium text-gray-800">
                     {report.month}
                   </td>
 
-                  {/* Customers */}
+                  {/* CUSTOMERS */}
 
                   <td className="px-4 py-4 text-gray-600">
                     {report.customers}
                   </td>
 
-                  {/* Paid */}
+                  {/* PAID */}
 
                   <td className="px-4 py-4">
 
-                    <span className="px-3 py-1 rounded-full text-sm bg-green-100 text-green-700">
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">
                       {report.paid}
                     </span>
 
                   </td>
 
-                  {/* Unpaid */}
+                  {/* UNPAID */}
 
                   <td className="px-4 py-4">
 
-                    <span className="px-3 py-1 rounded-full text-sm bg-red-100 text-red-700">
+                    <span className="rounded-full bg-red-100 px-3 py-1 text-sm text-red-700">
                       {report.unpaid}
                     </span>
 
                   </td>
 
-                  {/* Amount */}
+                  {/* TOTAL */}
 
                   <td className="px-4 py-4 font-medium text-gray-800">
-                    Rs. {report.amount.toLocaleString()}
+                    {formatMoney(
+                      report.amount
+                    )}
+                  </td>
+
+                  {/* PAID AMOUNT */}
+
+                  <td className="px-4 py-4 font-medium text-green-600">
+                    {formatMoney(
+                      report.paidAmount
+                    )}
+                  </td>
+
+                  {/* PENDING AMOUNT */}
+
+                  <td className="px-4 py-4 font-medium text-red-600">
+                    {formatMoney(
+                      report.unpaidAmount
+                    )}
                   </td>
 
                 </tr>
@@ -477,6 +601,7 @@ const Reports = () => {
           </table>
 
         </div>
+
       </div>
 
     </div>
@@ -484,4 +609,3 @@ const Reports = () => {
 };
 
 export default Reports;
-
